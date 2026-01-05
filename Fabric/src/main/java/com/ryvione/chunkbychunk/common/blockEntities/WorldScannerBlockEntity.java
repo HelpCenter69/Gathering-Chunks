@@ -44,6 +44,7 @@ import com.ryvione.chunkbychunk.server.world.SpawnChunkHelper;
 import com.ryvione.chunkbychunk.config.ChunkByChunkConfig;
 import com.ryvione.chunkbychunk.interop.Services;
 import java.util.*;
+
 public class WorldScannerBlockEntity extends BaseFueledBlockEntity {
     public static final int SLOT_INPUT = 0;
     public static final int SLOT_FUEL = 1;
@@ -83,6 +84,7 @@ public class WorldScannerBlockEntity extends BaseFueledBlockEntity {
     private int scanCharge = 0;
     private final SpiralIterator scanIterator = new SpiralIterator();
     private int tickUntilReplicate = 0;
+
     protected final ContainerData dataAccess = new ContainerData() {
         public int get(int id) {
             return switch (id) {
@@ -94,6 +96,7 @@ public class WorldScannerBlockEntity extends BaseFueledBlockEntity {
                 default -> 0;
             };
         }
+
         public void set(int id, int value) {
             switch (id) {
                 case DATA_MAP -> {
@@ -105,10 +108,12 @@ public class WorldScannerBlockEntity extends BaseFueledBlockEntity {
                 }
             }
         }
+
         public int getCount() {
             return NUM_DATA_ITEMS;
         }
     };
+
     static {
         FUEL = ImmutableMap.<Item, FuelValueSupplier>builder()
                 .put(Services.PLATFORM.worldFragmentItem(), () -> ChunkByChunkConfig.get().getWorldScannerConfig().getFuelPerFragment())
@@ -116,20 +121,25 @@ public class WorldScannerBlockEntity extends BaseFueledBlockEntity {
                 .put(Services.PLATFORM.worldCrystalItem(), () -> 16 * ChunkByChunkConfig.get().getWorldScannerConfig().getFuelPerFragment())
                 .put(Services.PLATFORM.worldCoreBlockItem(), () -> 64 * ChunkByChunkConfig.get().getWorldScannerConfig().getFuelPerFragment()).build();
     }
+
     public WorldScannerBlockEntity(BlockPos pos, BlockState state) {
         super(Services.PLATFORM.worldScannerEntity(), pos, state, NUM_ITEM_SLOTS, SLOT_FUEL, FUEL, Collections.emptyMap());
     }
+
     @Override
     protected Component getDefaultName() {
         return Component.translatable("container.chunkbychunk.worldscanner");
     }
+
     @Override
     protected AbstractContainerMenu createMenu(int menuId, Inventory inventory) {
         return new WorldScannerMenu(menuId, inventory, this, this.dataAccess);
     }
+
     public static boolean isWorldScannerFuel(ItemStack itemStack) {
         return FUEL.getOrDefault(itemStack.getItem(), () -> 0).get() > 0;
     }
+
     @Override
     protected void loadAdditional(CompoundTag tag, HolderLookup.Provider provider) {
         super.loadAdditional(tag, provider);
@@ -138,6 +148,7 @@ public class WorldScannerBlockEntity extends BaseFueledBlockEntity {
         scanIterator.load(tag.getCompound("ScanIterator"));
         scanCharge = tag.getInt("ScanCharge");
     }
+
     @Override
     protected void saveAdditional(CompoundTag tag, HolderLookup.Provider provider) {
         super.saveAdditional(tag, provider);
@@ -145,8 +156,12 @@ public class WorldScannerBlockEntity extends BaseFueledBlockEntity {
         tag.put("ScanIterator", scanIterator.createTag());
         tag.putInt("ScanCharge", scanCharge);
     }
+
     private boolean validTarget() {
         ItemStack targetItem = getItem(SLOT_INPUT);
+        if (targetItem.isEmpty()) {
+            return false;
+        }
         if (targetItem.getItem() instanceof BucketItem bucket) {
             return Services.PLATFORM.getFluidContent(bucket) instanceof FlowingFluid;
         } else if (Items.SLIME_BALL.equals(targetItem.getItem())) {
@@ -154,99 +169,162 @@ public class WorldScannerBlockEntity extends BaseFueledBlockEntity {
         }
         return targetItem.getItem() instanceof BlockItem || scanItemMappings.keySet().contains(targetItem.getItem());
     }
+
     public static void serverTick(Level level, BlockPos blockPos, BlockState blockState, WorldScannerBlockEntity entity) {
-        ServerLevel serverLevel = (ServerLevel) level;
+        // Safety check: ensure we're on server
+        if (!(level instanceof ServerLevel serverLevel)) {
+            return;
+        }
+
         boolean changed = false;
-        if (entity.scanIterator.getX() >= 0 && entity.validTarget()) {
-            ItemStack targetItem = entity.getItem(SLOT_INPUT);
-            if (entity.getRemainingFuel() > 0) {
-                int consumeAmount = entity.consumeFuel(ChunkByChunkConfig.get().getWorldScannerConfig().getFuelConsumedPerTick());
-                entity.scanCharge += consumeAmount;
-            }
-            changed = entity.checkConsumeFuelItem();
-            int chunkCost = ChunkByChunkConfig.get().getWorldScannerConfig().getFuelRequiredPerChunk();
-            if (entity.scanCharge >= chunkCost) {
-                if (entity.map == null) {
-                    entity.createMap();
+
+        try {
+            if (entity.scanIterator.getX() >= 0 && entity.validTarget()) {
+                ItemStack targetItem = entity.getItem(SLOT_INPUT);
+
+                if (entity.getRemainingFuel() > 0) {
+                    int consumeAmount = entity.consumeFuel(ChunkByChunkConfig.get().getWorldScannerConfig().getFuelConsumedPerTick());
+                    entity.scanCharge += consumeAmount;
                 }
-                ChunkPos originChunkPos = new ChunkPos(blockPos);
-                int chunkX = entity.scanIterator.getX() + originChunkPos.x - SCAN_CENTER;
-                int chunkZ = entity.scanIterator.getY() + originChunkPos.z - SCAN_CENTER;
-                ServerLevel scanLevel;
-                if (serverLevel.getChunkSource().getGenerator() instanceof SkyChunkGenerator skyGenerator && SpawnChunkHelper.isEmptyChunk(serverLevel, new ChunkPos(chunkX, chunkZ))) {
-                    scanLevel = serverLevel.getServer().getLevel(skyGenerator.getGenerationLevel());
-                } else {
-                    scanLevel = serverLevel;
-                }
-                ChunkAccess chunk = scanLevel.getChunk(chunkX, chunkZ);
-                int blockCount;
-                if (targetItem.getItem().equals(Items.SLIME_BALL) || targetItem.getItem().equals(Items.SLIME_BLOCK)) {
-                    if (WorldgenRandom.seedSlimeChunk(chunkX, chunkZ, ((WorldGenLevel) scanLevel).getSeed(), 987234911L).nextInt(10) == 0) {
-                        blockCount = 20000;
+
+                changed = entity.checkConsumeFuelItem();
+
+                int chunkCost = ChunkByChunkConfig.get().getWorldScannerConfig().getFuelRequiredPerChunk();
+                if (entity.scanCharge >= chunkCost) {
+                    if (entity.map == null) {
+                        entity.createMap();
+                    }
+
+                    ChunkPos originChunkPos = new ChunkPos(blockPos);
+                    int chunkX = entity.scanIterator.getX() + originChunkPos.x - SCAN_CENTER;
+                    int chunkZ = entity.scanIterator.getY() + originChunkPos.z - SCAN_CENTER;
+
+                    // Safety check: ensure scan level exists
+                    ServerLevel scanLevel = serverLevel;
+                    try {
+                        if (serverLevel.getChunkSource().getGenerator() instanceof SkyChunkGenerator skyGenerator
+                                && SpawnChunkHelper.isEmptyChunk(serverLevel, new ChunkPos(chunkX, chunkZ))) {
+                            ServerLevel genLevel = serverLevel.getServer().getLevel(skyGenerator.getGenerationLevel());
+                            if (genLevel != null) {
+                                scanLevel = genLevel;
+                            }
+                        }
+                    } catch (Exception e) {
+                        // If dimension lookup fails, use current level
+                        scanLevel = serverLevel;
+                    }
+
+                    // Safety check: ensure chunk is loaded before accessing
+                    if (!scanLevel.hasChunk(chunkX, chunkZ)) {
+                        // Skip this chunk and move to next
+                        entity.scanIterator.next();
+                        entity.scanCharge -= chunkCost;
+                        changed = true;
+                        return;
+                    }
+
+                    ChunkAccess chunk = scanLevel.getChunk(chunkX, chunkZ);
+                    int blockCount;
+
+                    if (targetItem.getItem().equals(Items.SLIME_BALL) || targetItem.getItem().equals(Items.SLIME_BLOCK)) {
+                        if (WorldgenRandom.seedSlimeChunk(chunkX, chunkZ, ((WorldGenLevel) scanLevel).getSeed(), 987234911L).nextInt(10) == 0) {
+                            blockCount = 20000;
+                        } else {
+                            blockCount = 0;
+                        }
                     } else {
-                        blockCount = 0;
+                        Set<Block> scanForBlocks = new HashSet<>();
+                        Collection<Block> mappings = scanItemMappings.get(targetItem.getItem());
+                        if (!mappings.isEmpty()) {
+                            scanForBlocks.addAll(mappings);
+                        } else if (targetItem.getItem() instanceof BucketItem bucket) {
+                            try {
+                                scanForBlocks.add(Services.PLATFORM.getFluidContent(bucket).defaultFluidState().createLegacyBlock().getBlock());
+                            } catch (Exception e) {
+                                // Invalid fluid, skip
+                                blockCount = 0;
+                            }
+                        } else if (targetItem.getItem() instanceof BlockItem blockItem) {
+                            scanForBlocks.add(blockItem.getBlock());
+                        }
+
+                        blockCount = scanForBlocks.isEmpty() ? 0 : ChunkUtil.countBlocks(chunk, scanForBlocks);
                     }
-                } else {
-                    Set<Block> scanForBlocks = new HashSet<>();
-                    Collection<Block> mappings = scanItemMappings.get(targetItem.getItem());
-                    if (!mappings.isEmpty()) {
-                        scanForBlocks.addAll(mappings);
-                    } else if (targetItem.getItem() instanceof BucketItem bucket) {
-                        scanForBlocks.add(Services.PLATFORM.getFluidContent(bucket).defaultFluidState().createLegacyBlock().getBlock());
-                    } else if (targetItem.getItem() instanceof BlockItem blockItem) {
-                        scanForBlocks.add(blockItem.getBlock());
-                    }
-                    blockCount = ChunkUtil.countBlocks(chunk, scanForBlocks);
-                }
-                byte color = MapColor.COLOR_BLACK.getPackedId(MapColor.Brightness.NORMAL);
-                for (int i = 0; i < SCAN_COLOR_THRESHOLD.length; i++) {
-                    color = SCAN_COLOR_PALETTE[i];
-                    if (blockCount <= SCAN_COLOR_THRESHOLD[i]) {
-                        break;
-                    }
-                }
-                MapItemSavedData data = serverLevel.getMapData(entity.map);
-                if (data != null) {
-                    for (int innerX = 0; innerX < SCAN_ZOOM; innerX++) {
-                        for (int innerZ = 0; innerZ < SCAN_ZOOM; innerZ++) {
-                            int pixelX = entity.scanIterator.getX() * SCAN_ZOOM + innerX;
-                            int pixelY = entity.scanIterator.getY() * SCAN_ZOOM + innerZ;
-                            data.setColor(pixelX, pixelY, color);
+
+                    byte color = MapColor.COLOR_BLACK.getPackedId(MapColor.Brightness.NORMAL);
+                    for (int i = 0; i < SCAN_COLOR_THRESHOLD.length; i++) {
+                        color = SCAN_COLOR_PALETTE[i];
+                        if (blockCount <= SCAN_COLOR_THRESHOLD[i]) {
+                            break;
                         }
                     }
+
+                    MapItemSavedData data = serverLevel.getMapData(entity.map);
+                    if (data != null) {
+                        try {
+                            for (int innerX = 0; innerX < SCAN_ZOOM; innerX++) {
+                                for (int innerZ = 0; innerZ < SCAN_ZOOM; innerZ++) {
+                                    int pixelX = entity.scanIterator.getX() * SCAN_ZOOM + innerX;
+                                    int pixelY = entity.scanIterator.getY() * SCAN_ZOOM + innerZ;
+                                    data.setColor(pixelX, pixelY, color);
+                                }
+                            }
+                        } catch (Exception e) {
+                            // Map update failed, continue anyway
+                        }
+                    }
+
+                    entity.scanIterator.next();
+                    entity.scanCharge -= chunkCost;
+                    changed = true;
                 }
-                entity.scanIterator.next();
-                entity.scanCharge -= chunkCost;
-                changed = true;
             }
+        } catch (Exception e) {
+            // Catch any unexpected errors to prevent crashes
+            // Log the error but don't crash the game
+            System.err.println("WorldScanner error: " + e.getMessage());
+            e.printStackTrace();
         }
+
         if (changed) {
             setChanged(level, blockPos, blockState);
         }
+
         if (entity.map != null && (changed || entity.tickUntilReplicate <= 0)) {
-            MapItemSavedData mapitemsaveddata = serverLevel.getMapData(entity.map);
-            if (mapitemsaveddata != null) {
-                for (ServerPlayer serverplayer : serverLevel.players()) {
-                    mapitemsaveddata.getHoldingPlayer(serverplayer);
-                    Packet<?> packet = mapitemsaveddata.getUpdatePacket(entity.map, serverplayer);
-                    if (packet != null) {
-                        serverplayer.connection.send(packet);
+            try {
+                MapItemSavedData mapitemsaveddata = serverLevel.getMapData(entity.map);
+                if (mapitemsaveddata != null) {
+                    for (ServerPlayer serverplayer : serverLevel.players()) {
+                        mapitemsaveddata.getHoldingPlayer(serverplayer);
+                        Packet<?> packet = mapitemsaveddata.getUpdatePacket(entity.map, serverplayer);
+                        if (packet != null) {
+                            serverplayer.connection.send(packet);
+                        }
                     }
                 }
+            } catch (Exception e) {
+                // Map replication failed, not critical
             }
             entity.tickUntilReplicate = TICKS_BETWEEN_REPLICATES;
         } else {
             entity.tickUntilReplicate--;
         }
     }
+
     private void createMap() {
         if (map == null && level instanceof ServerLevel serverLevel) {
-            ChunkPos pos = new ChunkPos(getBlockPos());
-            MapItemSavedData data = MapItemSavedData.createFresh(pos.getMaxBlockX(), pos.getMaxBlockZ(), (byte) 2, false, false, serverLevel.dimension()).locked();
-            map = serverLevel.getFreeMapId();
-            serverLevel.setMapData(map, data);
+            try {
+                ChunkPos pos = new ChunkPos(getBlockPos());
+                MapItemSavedData data = MapItemSavedData.createFresh(pos.getMaxBlockX(), pos.getMaxBlockZ(), (byte) 2, false, false, serverLevel.dimension()).locked();
+                map = serverLevel.getFreeMapId();
+                serverLevel.setMapData(map, data);
+            } catch (Exception e) {
+                // Map creation failed
+                System.err.println("Failed to create scanner map: " + e.getMessage());
+            }
         }
     }
+
     @Override
     public int[] getSlotsForFace(Direction direction) {
         return switch (direction) {
@@ -255,10 +333,12 @@ public class WorldScannerBlockEntity extends BaseFueledBlockEntity {
             default -> SLOTS_FOR_SIDES;
         };
     }
+
     @Override
     public boolean canTakeItemThroughFace(int slot, ItemStack itemStack, Direction direction) {
         return slot == SLOT_INPUT;
     }
+
     @Override
     public void setItem(int slot, ItemStack newItem) {
         boolean targetUnchanged = true;
@@ -271,23 +351,30 @@ public class WorldScannerBlockEntity extends BaseFueledBlockEntity {
             resetScan();
         }
     }
+
     private void resetScan() {
-        if (map != null && level instanceof ServerLevel serverLevel) {
-            MapItemSavedData data = serverLevel.getMapData(map);
-            if (data != null) {
-                for (int x = 0; x < MapItem.IMAGE_WIDTH; x++) {
-                    for (int y = 0; y < MapItem.IMAGE_HEIGHT; y++) {
-                        data.setColor(x, y, MapColor.NONE.getPackedId(MapColor.Brightness.NORMAL));
+        try {
+            if (map != null && level instanceof ServerLevel serverLevel) {
+                MapItemSavedData data = serverLevel.getMapData(map);
+                if (data != null) {
+                    for (int x = 0; x < MapItem.IMAGE_WIDTH; x++) {
+                        for (int y = 0; y < MapItem.IMAGE_HEIGHT; y++) {
+                            data.setColor(x, y, MapColor.NONE.getPackedId(MapColor.Brightness.NORMAL));
+                        }
                     }
                 }
             }
+        } catch (Exception e) {
+            // Reset failed, not critical
         }
         scanIterator.reset(SCAN_CENTER, SCAN_CENTER);
         setChanged();
     }
+
     public static void clearItemMappings() {
         scanItemMappings.clear();
     }
+
     public static void addItemMappings(Collection<Item> items, Collection<Block> blocks) {
         for (Item item : items) {
             scanItemMappings.putAll(item, blocks);

@@ -1,0 +1,20 @@
+{
+  "type" : "minecraft:crafting_shaped",
+  "pattern": [
+    " s ",
+    "scs",
+    " s "
+  ],
+  "key" : {
+    "s" : {
+      "id": "minecraft:dispenser"
+    },
+    "c" : {
+      "id" : "chunkbychunk:worldcore"
+    }
+  },
+  "result" : {
+    "id" : "chunkbychunk:worldmender",
+    "count" : 1
+  }
+}

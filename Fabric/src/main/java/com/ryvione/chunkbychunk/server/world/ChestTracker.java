@@ -25,10 +25,12 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+
 public class ChestTracker extends SavedData {
     private final Set<BlockPos> chestPositions = new HashSet<>();
     private final Map<UUID, Boolean> playerTrackerEnabled = new HashMap<>();
     private final MinecraftServer server;
+
     public static ChestTracker get(MinecraftServer server) {
         ServerLevel overworld = server.getLevel(Level.OVERWORLD);
         if (overworld == null) {
@@ -43,6 +45,7 @@ public class ChestTracker extends SavedData {
                 "chunkbychunk_chest_tracker"
         );
     }
+
     private static ChestTracker load(MinecraftServer server, CompoundTag tag, HolderLookup.Provider provider) {
         ChestTracker tracker = new ChestTracker(server);
         ListTag positionsTag = tag.getList("chests", CompoundTag.TAG_COMPOUND);
@@ -51,8 +54,10 @@ public class ChestTracker extends SavedData {
             int x = posTag.getInt("x");
             int y = posTag.getInt("y");
             int z = posTag.getInt("z");
-            tracker.chestPositions.add(new BlockPos(x, y, z));
+            // Use immutable() to ensure we store the position correctly
+            tracker.chestPositions.add(new BlockPos(x, y, z).immutable());
         }
+
         ListTag playerSettingsTag = tag.getList("playerSettings", CompoundTag.TAG_COMPOUND);
         for (int i = 0; i < playerSettingsTag.size(); i++) {
             CompoundTag playerTag = playerSettingsTag.getCompound(i);
@@ -62,20 +67,25 @@ public class ChestTracker extends SavedData {
         }
         return tracker;
     }
+
     private ChestTracker(MinecraftServer server) {
         this.server = server;
     }
+
     @Override
     public CompoundTag save(CompoundTag tag, HolderLookup.Provider provider) {
         ListTag positionsTag = new ListTag();
         for (BlockPos pos : chestPositions) {
             CompoundTag posTag = new CompoundTag();
-            posTag.putInt("x", pos.getX());
-            posTag.putInt("y", pos.getY());
-            posTag.putInt("z", pos.getZ());
+            // Store the immutable position to ensure consistency
+            BlockPos immutablePos = pos.immutable();
+            posTag.putInt("x", immutablePos.getX());
+            posTag.putInt("y", immutablePos.getY());
+            posTag.putInt("z", immutablePos.getZ());
             positionsTag.add(posTag);
         }
         tag.put("chests", positionsTag);
+
         ListTag playerSettingsTag = new ListTag();
         for (Map.Entry<UUID, Boolean> entry : playerTrackerEnabled.entrySet()) {
             CompoundTag playerTag = new CompoundTag();
@@ -86,23 +96,41 @@ public class ChestTracker extends SavedData {
         tag.put("playerSettings", playerSettingsTag);
         return tag;
     }
+
     public void addChest(BlockPos pos) {
+        // Always store as immutable to prevent coordinate drift
         chestPositions.add(pos.immutable());
         setDirty();
     }
+
     public void removeChest(BlockPos pos) {
-        if (chestPositions.remove(pos)) {
+        // Check both mutable and immutable versions to handle edge cases
+        boolean removed = chestPositions.remove(pos);
+        if (!removed) {
+            removed = chestPositions.remove(pos.immutable());
+        }
+        if (removed) {
             setDirty();
         }
     }
+
     public Set<BlockPos> getChestPositions() {
-        return new HashSet<>(chestPositions);
+        // Return immutable copies to prevent external modification
+        Set<BlockPos> result = new HashSet<>();
+        for (BlockPos pos : chestPositions) {
+            result.add(pos.immutable());
+        }
+        return result;
     }
+
     public void checkAndRemoveIfEmpty(BlockPos pos, ServerLevel level) {
-        if (!chestPositions.contains(pos)) {
+        // Check with immutable position
+        BlockPos immutablePos = pos.immutable();
+        if (!chestPositions.contains(immutablePos)) {
             return;
         }
-        BlockEntity blockEntity = level.getBlockEntity(pos);
+
+        BlockEntity blockEntity = level.getBlockEntity(immutablePos);
         if (blockEntity instanceof RandomizableContainerBlockEntity chest) {
             boolean isEmpty = true;
             for (int i = 0; i < chest.getContainerSize(); i++) {
@@ -112,19 +140,22 @@ public class ChestTracker extends SavedData {
                 }
             }
             if (isEmpty) {
-                removeChest(pos);
+                removeChest(immutablePos);
             }
         } else {
-            removeChest(pos);
+            removeChest(immutablePos);
         }
     }
+
     public boolean isTracked(BlockPos pos) {
-        return chestPositions.contains(pos);
+        return chestPositions.contains(pos.immutable());
     }
+
     public void setTrackerEnabled(UUID playerUUID, boolean enabled) {
         playerTrackerEnabled.put(playerUUID, enabled);
         setDirty();
     }
+
     public boolean isTrackerEnabled(UUID playerUUID) {
         return playerTrackerEnabled.getOrDefault(playerUUID, true);
     }

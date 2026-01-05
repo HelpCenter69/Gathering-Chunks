@@ -24,10 +24,7 @@
     "client": [
       "com.ryvione.chunkbychunk.fabric.ChunkByChunkClientMod"
     ],
-    "modmenu": [ "com.ryvione.chunkbychunk.fabric.ModMenuApiImpl" ],
-    "jei_mod_plugin": [
-      "com.ryvione.chunkbychunk.common.jei.CBCJeiPlugin"
-    ]
+    "modmenu": [ "com.ryvione.chunkbychunk.fabric.ModMenuApiImpl" ]
   },
   "mixins": [
     "chunkbychunk.mixins.json"
@@ -43,4 +40,3 @@
     "jei" : ">=10.2.1.1002"
   }
 }
-  

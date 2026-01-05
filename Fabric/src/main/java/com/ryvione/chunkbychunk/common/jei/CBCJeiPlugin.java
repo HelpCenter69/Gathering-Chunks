@@ -9,6 +9,7 @@
  */
 
 package com.ryvione.chunkbychunk.common.jei;
+
 import mezz.jei.api.IModPlugin;
 import mezz.jei.api.JeiPlugin;
 import mezz.jei.api.recipe.RecipeType;
@@ -22,32 +23,42 @@ import com.ryvione.chunkbychunk.common.blockEntities.WorldForgeBlockEntity;
 import com.ryvione.chunkbychunk.common.blockEntities.WorldScannerBlockEntity;
 import com.ryvione.chunkbychunk.config.ChunkByChunkConfig;
 import com.ryvione.chunkbychunk.interop.Services;
+
 import java.util.Arrays;
 import java.util.Collections;
+
 @JeiPlugin
 public class CBCJeiPlugin implements IModPlugin {
     public static final RecipeType<WorldForgeRecipe> WORLD_FORGE =
             RecipeType.create(ChunkByChunkConstants.MOD_ID, "worldforge", WorldForgeRecipe.class);
+
     public static final RecipeType<WorldScannerRecipe> WORLD_SCANNER =
             RecipeType.create(ChunkByChunkConstants.MOD_ID, "worldscanner", WorldScannerRecipe.class);
+
     public static final RecipeType<WorldMenderRecipe> WORLD_MENDER =
             RecipeType.create(ChunkByChunkConstants.MOD_ID, "worldmender", WorldMenderRecipe.class);
+
     @Override
     public ResourceLocation getPluginUid() {
         return ResourceLocation.fromNamespaceAndPath(ChunkByChunkConstants.MOD_ID, "jei");
     }
+
     @Override
     public void registerCategories(IRecipeCategoryRegistration registration) {
         registration.addRecipeCategories(new WorldForgeRecipeCategory(registration.getJeiHelpers().getGuiHelper()));
         registration.addRecipeCategories(new WorldScannerRecipeCategory(registration.getJeiHelpers().getGuiHelper()));
         registration.addRecipeCategories(new WorldMenderRecipeCategory(registration.getJeiHelpers().getGuiHelper()));
     }
+
     @Override
     public void registerRecipes(IRecipeRegistration registration) {
+        // JEI automatically picks up vanilla crafting recipes in 1.21.1+
+        // No need to manually register them
         registerWorldForgeRecipes(registration);
         registerWorldScannerRecipes(registration);
         registerWorldMenderRecipes(registration);
     }
+
     private void registerWorldMenderRecipes(IRecipeRegistration registration) {
         registration.addRecipes(WORLD_MENDER, Arrays.asList(
                 new WorldMenderRecipe(Services.PLATFORM.worldCoreBlockItem().getDefaultInstance()),
@@ -56,13 +67,16 @@ public class CBCJeiPlugin implements IModPlugin {
         ));
         registration.addRecipes(WORLD_MENDER, Services.PLATFORM.biomeThemeBlockItems().stream().map(WorldMenderRecipe::new).toList());
     }
+
     private void registerWorldScannerRecipes(IRecipeRegistration registration) {
         registration.addRecipes(WORLD_SCANNER, WorldScannerBlockEntity.FUEL.entrySet().stream().map(entry -> new WorldScannerRecipe(entry.getKey().getDefaultInstance(), entry.getValue().get())).toList());
     }
+
     private void registerWorldForgeRecipes(IRecipeRegistration registration) {
         registration.addRecipes(WORLD_FORGE, WorldForgeBlockEntity.FUEL_TAGS.entrySet().stream().map(tagInfo -> {
             int inputSize = determineForgeInput(tagInfo.getValue().get());
             ItemStack output = determineForgeOutput(tagInfo.getValue().get());
+
             return new WorldForgeRecipe(registration.getIngredientManager().getAllItemStacks().stream().filter(item -> item.is(tagInfo.getKey())).map(x -> {
                 if (inputSize > 1) {
                     ItemStack copy = x.copy();
@@ -83,9 +97,11 @@ public class CBCJeiPlugin implements IModPlugin {
             return new WorldForgeRecipe(Collections.singletonList(input), ChunkByChunkConfig.get().getWorldForge().getFragmentFuelCost(), output);
         }).toList());
     }
+
     private int determineForgeInput(int fuelValue) {
         return Math.max(1, ChunkByChunkConfig.get().getWorldForge().getFragmentFuelCost() / fuelValue);
     }
+
     @NotNull
     private ItemStack determineForgeOutput(int fuelValue) {
         int count = fuelValue / ChunkByChunkConfig.get().getWorldForge().getFragmentFuelCost();

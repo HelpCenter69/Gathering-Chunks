@@ -1,0 +1,26 @@
+{
+  "type" : "minecraft:crafting_shaped",
+  "pattern": [
+    "sCs",
+    "CXC",
+    "dCd"
+  ],
+  "key" : {
+    "s": {
+      "id": "minecraft:stick"
+    },
+    "d" : {
+      "id": "minecraft:dirt"
+    },
+    "C" : {
+      "id" : "minecraft:copper_ingot"
+    },
+    "X" : {
+      "id" : "chunkbychunk:worldcore"
+    }
+  },
+  "result" : {
+    "id" : "chunkbychunk:forestchunkspawner",
+    "count" : 1
+  }
+}
