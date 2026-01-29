@@ -4,6 +4,8 @@
 [![Mod Loader](https://img.shields.io/badge/Mod%20Loader-Fabric-blue.svg)](https://fabricmc.net/)
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
+Discord Server Link : https://discord.gg/3S9aKukmmJ
+
 A Minecraft mod that generates the world chunk by chunk as you explore. This is a maintained fork of the original [Chunk By Chunk](https://github.com/immortius/chunkbychunk) by immortius.
 
 ## About This Fork
