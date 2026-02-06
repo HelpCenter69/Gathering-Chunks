@@ -1,7 +1,8 @@
-# Chunk By Chunk (Ryvione's Fork)
+# Gathering Chunks (Ryvione's Fork)
 
 [![Minecraft Version](https://img.shields.io/badge/Minecraft-1.21.1-brightgreen.svg)](https://www.minecraft.net/)
 [![Mod Loader](https://img.shields.io/badge/Mod%20Loader-Fabric-blue.svg)](https://fabricmc.net/)
+[![Mod Loader](https://img.shields.io/badge/NeoForge-1.21+-orange?style=for-the-badge)](https://neoforged.net)
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 Discord Server Link : https://discord.gg/3S9aKukmmJ
@@ -13,7 +14,7 @@ A Minecraft mod that generates the world chunk by chunk as you explore. This is 
 The original Chunk By Chunk is an excellent mod that deserves to be kept alive and updated. Since the original repository appears to be discontinued, I've decided to continue its development, fixing bugs, adding features, and ensuring compatibility with newer Minecraft versions.
 
 ## New Features & Improvements
-- No "Major" features were added in this version, it's just a port for now, i need ideas.
+- A lot of features were added in the mod, i will add all of them there soon.
 
 ## Features
 
@@ -25,13 +26,13 @@ The original Chunk By Chunk is an excellent mod that deserves to be kept alive a
 ## Building from Source
 ```bash
 # Clone the repository
-git clone https://github.com/ryvione/Chunk-by-Chunk.git
-cd Chunk-by-Chunk
+git clone https://github.com/ryvione/Gathering-Chunks.git
+cd Gathering-Chunks
 
 # Build the mod
 ./gradlew build
 
-# The compiled JAR will be in Fabric/build/libs/
+# The compiled JARS will be in Fabric/build/libs/ and NeoForge/build/libs
 ```
 
 ## Commands
@@ -46,9 +47,9 @@ cd Chunk-by-Chunk
 ## Roadmap
 
 - [ ] Support for Minecraft 1.21.2+
-- [ ] NeoForge compatibility
-- [ ] Additional configuration options
-- [ ] Performance optimizations
+- [X] NeoForge compatibility
+- [X] Additional configuration options
+- [X] Performance optimizations
 - [ ] More biome-specific features
 - [ ] Nether specific blocks
 - [ ] Integration with popular mods
@@ -95,7 +96,8 @@ Found a bug? Please report it on our [Issues](../../issues) page with:
 
 - **Issues**: [GitHub Issues](../../issues)
 - **Discussions**: [GitHub Discussions](../../discussions)
-- **Download**: [Modrinth](https://modrinth.com/mod/unofficial-chunk-by-chunk)
+- **Download (Modrinth)**: [Modrinth](https://modrinth.com/mod/gathering-chunks)
+- **Download (CurseForge)**: [CurseForge](https://www.curseforge.com/minecraft/mc-mods/gathering-chunks)
 
 ---
 
